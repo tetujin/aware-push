@@ -1,82 +1,141 @@
 // import libraries
 const express = require('express');
 var apn       = require('apn');
-// var apn = require('@parse/node-apn');
 var http      = require("request");
 const uuidv1  = require('uuid/v1');
+var mysql     = require('mysql');
+var config    = require('config');
 
 // generate an express instance
 const app     = express();
+app.set('view engine', 'pug')
 
-// https://github.com/node-apn/node-apn/blob/master/doc/provider.markdown
-var options = {
-  token: {
-    key: 'AuthKey_PFW9573J3A.p8', // Path to the key p8 file
-    keyId: 'PFW9573J3A', // The Key ID of the p8 file (available at https://developer.apple.com/account/ios/certificate/key)
-    teamId: 'FH352PYMNC', // The Team ID of your Apple Developer Account (available at https://developer.apple.com/account/#/membership/)
-  },
-  production: false,
-};
+var apnProvider = new apn.Provider(config.apn.options);
 
-// var options = {
-//   token: {
-//     key: 'AuthKey_89KQ3W4B27.p8', // Path to the key p8 file
-//     keyId: '89KQ3W4B27', // The Key ID of the p8 file (available at https://developer.apple.com/account/ios/certificate/key)
-//     teamId: 'FH352PYMNC', // The Team ID of your Apple Developer Account (available at https://developer.apple.com/account/#/membership/)
-//   },
-//   production: false,
-// };
-
-
-var apnProvider = new apn.Provider(options);
-var token = "b24ace3c9906fb4fbb3de43f3b1a3155f649303b594dc74f91548228214e89f6";
-
-app.get('/', (req, res) => {
-
+function getSilentPushNotificationContent(){
   var note           = new apn.Notification();
   note.expiry = Math.floor(Date.now() / 1000) + 3600;
-  note.payload = {
-    'aware':[{'command':'restart'}]
-  };
-  // note.alert = {};
-  //
-  // settings for a background silent push notification
-  // https://developer.apple.com/documentation/usernotifications/setting_up_a_remote_notification_server/sending_notification_requests_to_apns?language=objc
-  // https://developer.apple.com/videos/play/wwdc2019/707/
   note.setContentAvailable(1);
   note.priority = 5;
-  note.pushType = 'background';
-  // note.pushType = 'alert';
-  note.topic    = 'com.yuukinishiyama.app.aware-client-ios-v2'
-  // note.topic    = 'com.yuukinishiyama.app.demo.Push2Me'
-  // note.id = uuidv1();
-  note.alert = {};
+  note.pushType = 'background'; //'alert'
+  note.topic    = config.app.topic;
+  note.alert    = {};
+  return note;
+}
 
-  console.log(note.compile());
-  console.log(note.headers());
-  //
-  // console.log(`Sending: ${note.compile()} to ${token}`);
+function getPushNotificationContent(){
+  var note           = new apn.Notification();
+  note.expiry = Math.floor(Date.now() / 1000) + 3600;
+  note.priority = 10;
+  note.pushType = 'alert'
+  note.topic    = config.app.topic;
+  return note;
+}
 
-  apnProvider.send(note, [token]).then( (result) => {
-  // see documentation for an explanation of result
-    console.log(result)
-  });
+function sendNotificationToAll(notificationContent){
+  var connection = mysql.createConnection(config.db);
 
+  var query = 'select token from (select * from push_notification_device_tokens order by timestamp desc) as tokens group by device_id';
+  connection.query(query, function (error, results, fields) {
+    var tokens = []
+    for (var i in results) {
+      tokens.push(results[i].token);
+    }
+    apnProvider.send(notificationContent, tokens).then( (result) => {
+      console.log(result)
+    });
+  })
+}
+
+app.get('/', (req, res) => {
+  res.render('index')
+});
+
+app.get('/start-all-sensors', (req, res) => {
+  var note = getSilentPushNotificationContent();
+  note.payload = {
+    'aware':{
+        v:1,
+        ops:[{"cmd":"start-all-sensors"}]
+    }
+  };
+  sendNotificationToAll(note);
+  res.json({"result":"200"});
+});
+
+app.get('/stop-all-sensors', (req, res) => {
+  var note = getSilentPushNotificationContent();
+  note.payload = {
+    'aware':{
+        v:1,
+        ops:[{"cmd":"stop-all-sensors"}]
+    }
+  };
+  sendNotificationToAll(note);
+  res.json({"result":"200"});
+});
+
+app.get('/sync-all-sensors', (req, res) => {
+  var note = getSilentPushNotificationContent();
+  note.payload = {
+    'aware':{
+        v:1,
+        ops:[{"cmd":"sync-all-sensors"}]
+    }
+  };
+  sendNotificationToAll(note);
+  res.json({"result":"200"});
+});
+
+app.get('/reactivate-core', (req, res) => {
+  var note = getSilentPushNotificationContent();
+  note.payload = {
+    'aware':{
+        v:1,
+        ops:[{"cmd":"reactivate-core"}]
+    }
+  };
+  sendNotificationToAll(note);
+  res.json({"result":"200"});
+});
+
+app.get('/push-msg', (req, res) => {
+  var note = getSilentPushNotificationContent();
+  note.payload = {
+    'aware':{
+        v:1,
+        ops:[{"cmd":"push-msg","msg":{"title":"test"}}]
+    }
+  };
+  sendNotificationToAll(note);
+  res.json({"result":"200"});
+});
+
+app.get('/sync-config', (req, res) => {
+  var note = getSilentPushNotificationContent();
+  note.payload = {
+    'aware':{
+        v:1,
+        ops:[{'cmd':'sync-config'}]
+    }
+  };
+  sendNotificationToAll(note);
   res.json({"result":"200"});
 });
 
 app.listen(3000, '127.0.0.1');
-console.log('start server');
+console.log('start server: http://127.0.0.1:3000');
 
-function notify(){
-  http.get({
-    url: "http://127.0.0.1:3000",
-  }, function(error, response, body){
-    if (error != null) {
-      console.log(error.response);
-    }
-  })
-};
+// notify
+// function notify(){
+//   http.get({
+//     url: "http://127.0.0.1:3000",
+//   }, function(error, response, body){
+//     if (error != null) {
+//       console.log(error.response);
+//     }
+//   })
+// };
 
-// setInterval(notify, 1000 * 60 * 30);
-setTimeout(notify, 1000);
+// setInterval(notify, 1000 * 10);// * 60); // * 30);
+// setTimeout(notify, 1000);

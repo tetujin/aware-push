@@ -2,3 +2,5 @@
 *.p12
 *.pkey
 *.p8
+
+config/default.json
