@@ -3,4 +3,6 @@
 *.pkey
 *.p8
 
+*.DS_Store
+
 config/default.json
