@@ -19,6 +19,6 @@
     "topic":"bundle-identifier"
   },
   "users":[
-    {"id":1,"name":"sample_name","pass":"password"}
+    {"id":"your_id","name":"your_name","key":"your_key"}
   ]
 }
