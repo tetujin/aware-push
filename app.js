@@ -48,6 +48,7 @@ function isValidAccount(id, key){
 
 app.post('/silent', (req, res) => {
   var payload = req.body.payload;
+  console.log(req.body);
   var tokens  = req.body.tokens;
   var key = req.body.key;
   var id  = req.body.id;

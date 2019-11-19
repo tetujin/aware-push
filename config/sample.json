@@ -9,12 +9,6 @@
       "production":false
     }
   },
-  "db":{
-    "host":"your.server.address",
-    "user":"user_name",
-    "database":"database_name",
-    "password":"password"
-  },
   "app":{
     "topic":"bundle-identifier"
   },
