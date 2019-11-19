@@ -18,43 +18,51 @@ Please rename `config/sample.json` to `config/default.json`, and fill out the co
 node app.js
 ```
 
+5. Test
+
+**Normal Push Notification**
+```
+curl -X POST -H "Content-Type: application/json" -d '{"alert":{"title":"TITLE","body":"BODY"},"tokens":["TOKEN"],"id":"HOGE_ID","key":"HOGE_KEY"}' http://127.0.0.1:3000/alert
+```
+
+**Silent Push Notification**
+```
+curl -X POST -H "Content-Type: application/json" -d '{"payload":{"aware":{"v":1,"ops":[{"cmd":"start-all-sensors"}]}},"tokens":["TOKEN"],"id":"HOGE_ID","key":"HOGE_KEY"}' http://127.0.0.1:3000/silent
+```
+
 ## Example
 
 ### Push Notification (Alert)
 
 ```
-note.priority = 10;
-note.pushType = 'alert';
-note.topic    = 'your.bundle.identifier'
-note.alert    = "Hello World!";
+{
+  "alert":{
+    "title":"TITLE",
+    "body":"BODY"
+  },
+  "tokens":[
+    "TOKEN"
+  ],
+  "id":"HOGE_ID",
+  "key":"HOGE_KEY"
+}
 ```
 
 ### Silent Push Notification
 
 ```
-note.setContentAvailable(1);
-note.priority = 5;
-note.pushType = 'background';
-note.topic    = 'your.bundle.identifier'
-note.payload  = {
-  aware:{
-      v:1.0,
-      ops:[{'cmd':'sync-config'}]
-  }
-};
-```
-
-```
 {
-  "apn": {
-    "category-available" : 1
-  }
-  "aware": {
-    "v":1.0,
-    "ops":[
-      {"cmd":"sync-config"}
-    ]
-  }
+  "payload":{
+    "aware":{
+      "v":1,
+      "ops":[
+        {"cmd":"reactivate-core"}
+      ]
+    }
+  },
+  "tokens":["TOKEN"],
+  "id":"HOGE_ID",
+  "key":"HOGE_KEY"
 }
 ```
 

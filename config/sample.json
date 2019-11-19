@@ -17,5 +17,8 @@
   },
   "app":{
     "topic":"bundle-identifier"
-  }
+  },
+  "users":[
+    {"id":1,"name":"sample_name","pass":"password"}
+  ]
 }
