@@ -22,12 +22,12 @@ node app.js
 
 **Normal Push Notification**
 ```
-curl -X POST -H "Content-Type: application/json" -d '{"alert":{"title":"TITLE","body":"BODY"},"tokens":["TOKEN"],"id":"HOGE_ID","key":"HOGE_KEY"}' http://127.0.0.1:3000/alert
+curl -X POST -H "Content-Type: application/json" -d '{"alert":{"title":"TITLE","body":"BODY"},"tokens":["TOKEN"],"id":"YOUR_ID","key":"YOUR_KEY"}' http://127.0.0.1:3000/alert
 ```
 
 **Silent Push Notification**
 ```
-curl -X POST -H "Content-Type: application/json" -d '{"payload":{"aware":{"v":1,"ops":[{"cmd":"start-all-sensors"}]}},"tokens":["TOKEN"],"id":"HOGE_ID","key":"HOGE_KEY"}' http://127.0.0.1:3000/silent
+curl -X POST -H "Content-Type: application/json" -d '{"payload":{"aware":{"v":1,"ops":[{"cmd":"start-all-sensors"}]}},"tokens":["TOKEN"],"id":"YOUR_ID","key":"YOUR_KEY"}' http://127.0.0.1:3000/silent
 ```
 
 ## Example

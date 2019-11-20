@@ -1,18 +1,25 @@
 {
-  "apn":{
-    "options":{
+  "push":{
+    "gcm": {
+        "id": null
+    },
+    "apn":{
       "token":{
-        "key":"xxxx.p8",
+        "key":"./certs/AuthKey_xxxx.p8",
         "keyId":"xxxx",
-        "teamId":"****"
+        "teamId":"yyyy"
       },
       "production":false
+    },
+    "adm": {
+        "client_id": null,
+        "client_secret": null
     }
   },
   "app":{
-    "topic":"bundle-identifier"
+    "topic":"BUNDLE_ID"
   },
   "users":[
-    {"id":"your_id","name":"your_name","key":"your_key"}
+    {"id":"YOUR_ID","name":"YOUR_NAME","key":"YOUR_KEY"}
   ]
 }
