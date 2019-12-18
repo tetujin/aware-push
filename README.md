@@ -30,7 +30,11 @@ curl -X POST -H "Content-Type: application/json" -d '{"alert":{"title":"TITLE","
 curl -X POST -H "Content-Type: application/json" -d '{"payload":{"aware":{"v":1,"ops":[{"cmd":"start-all-sensors"}]}},"tokens":["TOKEN"],"id":"YOUR_ID","key":"YOUR_KEY"}' http://127.0.0.1:3000/silent
 ```
 
-## Example
+**Continuation Silent Push Notification**
+```
+curl -X POST -H "Content-Type: application/json" -d '{"token":"TOKEN","device_id":"DEVICE_ID","platform":1}' http://127.0.0.1:3000/token/register
+```
+platform (0=Unknown, 1=iOS, 2=Android)
 
 ### Push Notification (Alert)
 

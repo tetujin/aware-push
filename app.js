@@ -1,10 +1,18 @@
 // import libraries
 const express    = require('express');
 var   config     = require('config');
-const bodyParser = require('body-parser')
-const pushNotifications = require('node-pushnotifications');
+const bodyParser = require('body-parser');
 
+const pushNotifications = require('node-pushnotifications');
 const push = new pushNotifications(config.push);
+
+const sqlite = require('sqlite3').verbose();
+const db = new sqlite.Database('aware-push.sqlite');
+db.serialize(() => {
+  db.run('CREATE TABLE IF NOT EXISTS tokens (id INTEGER primary key, timestamp REAL NOT NULL, device_id TEXT NOT NULL, token TEXT NOT NULL, platform INTEGER NOT NULL DEFAULT 0)');
+  // id, timestamp, device_id, token
+});
+// db.close();
 
 // generate an express instance
 const app     = express();
@@ -14,30 +22,31 @@ app.use(bodyParser.urlencoded({
 }));
 app.use(bodyParser.json());
 
-
-// send a silent push notification
+/**
+ send a silent push notification
+ */
 app.post('/silent', (req, res) => {
   var payload = req.body.payload;
-  console.log(req.body);
   var tokens  = req.body.tokens;
   var key = req.body.key;
   var id  = req.body.id;
+
   if (isValidAccount(id, key)) {
     var data     = getSilentPushNotificationContent();
     data.payload = payload;
     push.send(tokens, data, (err, result) => {
-        if (err) {
-            res.json({"result":401,"message":err});
-        } else {
-            res.json({"result":200,"message":result});
-        }
+      if (err) {
+          res.json({"result":401,"message":err});
+      } else {
+          res.json({"result":200,"message":result});
+      }
     });
   }else{
     res.json({"result":400,"message":"No Authorized Key"});
   }
 });
 
-// send an alert notification
+/** send an alert notification */
 app.post('/alert', (req, res) => {
   var key = req.body.key;
   var id  = req.body.id;
@@ -57,6 +66,50 @@ app.post('/alert', (req, res) => {
   }else{
     res.json({"result":400,"message":"No Authorized Key"});
   }
+});
+
+app.post('/token/register', (req, res) => {
+    db.serialize(() => {
+        var token     = req.body.token;
+        var device_id = req.body.device_id;
+        var platform  = req.body.platform; // 0:unknown, 1:iOS, 2:Android
+
+        if (token == null || token == undefined) {
+          res.json({"result":400,"message":"`token` is null"});
+        }
+
+        if (device_id == null || device_id == undefined) {
+          res.json({"result":400,"message":"`device_id` is null"});
+        }
+
+        if (platform == null || platform == undefined) {
+          platform = 0;
+        }
+
+        deleteToken(device_id,token);
+        var result = insertToken(device_id, token, platform);
+        if(result.status){
+          res.json({"result":200,"message":"registered"});
+        }else{
+          res.json({"result":500,"message":result.error});
+        }
+    });
+});
+
+app.post('/token/unregister', (req, res) => {
+  var token     = req.body.token;
+  var device_id = req.body.device_id;
+
+  if (token == null || token == undefined) {
+    res.json({"result":400,"message":"`token` is null"});
+  }
+
+  if (device_id == null || device_id == undefined) {
+    res.json({"result":400,"message":"`device_id` is null"});
+  }
+
+  deleteToken(device_id,token);
+  res.json({"result":200,"message":"unregistered"});
 });
 
 // start an aware-push server
@@ -90,28 +143,54 @@ function getPushNotificationContent(alert){
   return data;
 }
 
-function isValidAccount(id, key){
-  config    = require('config');
-  for (var i in config.users) {
-    var user = config.users[i];
-    if (key == user.key && id == user.id){
-      return true;
+function deleteToken(device_id, token){
+  db.serialize(() => {
+    try {
+      db.run(`delete from tokens where device_id = $device_id`, device_id);
+    } catch (e) {
+      console.log(e);
+    } finally {
+      return;
     }
-  }
-  return false;
+  });
 }
 
+function insertToken(device_id, token, platform){
+  var date = new Date() ;
+  var timestamp = date.getTime();
+
+  try {
+    const stmt = db.prepare('INSERT INTO tokens (timestamp, device_id, token, platform) values (?, ?, ?, ?)');
+    stmt.run([timestamp, device_id, token, platform]);
+    stmt.finalize();
+    return {'status':true, 'error':null};
+  } catch (e) {
+    return {'status':false, 'error':e};
+  }
+}
 
 // notify
-// function notify(){
-//   http.get({
-//     url: "http://127.0.0.1:3000",
-//   }, function(error, response, body){
-//     if (error != null) {
-//       console.log(error.response);
-//     }
-//   })
-// };
+function notify(){
+  db.serialize(() => {
+    db.all('SELECT token FROM tokens', function(err, rows) {
+      var data     = getSilentPushNotificationContent();
+      var tokens = [];
+      for (row of rows) {
+        tokens.push(row.token);
+      }
+
+      data.payload = {"aware":{
+                        "v":1,
+                        "ops":[
+                          {"cmd":"reactivate-core"}
+                        ]}
+                      };
+      push.send(tokens, data, (err, result) => {
+          console.log(result, err);
+      });
+    });
+  });
+};
 
 // setInterval(notify, 1000 * 10);// * 60); // * 30);
-// setTimeout(notify, 1000);
+setTimeout(notify, 1000);
