@@ -7,12 +7,12 @@ const pushNotifications = require('node-pushnotifications');
 const push = new pushNotifications(config.push);
 
 const sqlite = require('sqlite3').verbose();
-const db = new sqlite.Database('aware-push.sqlite');
+const db = getDB();
 db.serialize(() => {
   db.run('CREATE TABLE IF NOT EXISTS tokens (id INTEGER primary key, timestamp REAL NOT NULL, device_id TEXT NOT NULL, token TEXT NOT NULL, platform INTEGER NOT NULL DEFAULT 0)');
   // id, timestamp, device_id, token
 });
-// db.close();
+db.close();
 
 // generate an express instance
 const app     = express();
@@ -69,6 +69,7 @@ app.post('/alert', (req, res) => {
 });
 
 app.post('/token/register', (req, res) => {
+    const db = getDB();
     db.serialize(() => {
         var token     = req.body.token;
         var device_id = req.body.device_id;
@@ -94,6 +95,7 @@ app.post('/token/register', (req, res) => {
           res.json({"result":500,"message":result.error});
         }
     });
+    db.close();
 });
 
 app.post('/token/unregister', (req, res) => {
@@ -144,6 +146,7 @@ function getPushNotificationContent(alert){
 }
 
 function deleteToken(device_id, token){
+  const db = getDB();
   db.serialize(() => {
     try {
       db.run(`delete from tokens where device_id = $device_id`, device_id);
@@ -153,6 +156,7 @@ function deleteToken(device_id, token){
       return;
     }
   });
+  db.close();
 }
 
 function insertToken(device_id, token, platform){
@@ -160,17 +164,25 @@ function insertToken(device_id, token, platform){
   var timestamp = date.getTime();
 
   try {
+    const db = getDB();
     const stmt = db.prepare('INSERT INTO tokens (timestamp, device_id, token, platform) values (?, ?, ?, ?)');
     stmt.run([timestamp, device_id, token, platform]);
     stmt.finalize();
+    db.close();
     return {'status':true, 'error':null};
   } catch (e) {
     return {'status':false, 'error':e};
   }
 }
 
+function getDB(){
+  const db = new sqlite.Database('aware-push.sqlite');
+  return db;
+}
+
 // notify
 function notify(){
+  const db = getDB();
   db.serialize(() => {
     db.all('SELECT token FROM tokens', function(err, rows) {
       var data     = getSilentPushNotificationContent();
@@ -190,7 +202,9 @@ function notify(){
       });
     });
   });
+  db.close();
 };
 
-// setInterval(notify, 1000 * 10);// * 60); // * 30);
-setTimeout(notify, 1000);
+// setInterval(notify, 1000 * 60 * 30); // send notification every 30 min
+setInterval(notify, 1000);
+// setTimeout(notify, 1000);
