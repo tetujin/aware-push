@@ -21,5 +21,6 @@
   },
   "users":[
     {"id":"YOUR_ID","name":"YOUR_NAME","key":"YOUR_KEY"}
-  ]
+  ],
+  "db":"sqlite3"
 }

@@ -2,6 +2,7 @@
 const express    = require('express');
 var   config     = require('config');
 const bodyParser = require('body-parser');
+var request      = require('request');
 
 const pushNotifications = require('node-pushnotifications');
 const push = new pushNotifications(config.push);
@@ -22,14 +23,79 @@ app.use(bodyParser.urlencoded({
 }));
 app.use(bodyParser.json());
 
+
+app.post('/token/register', (req, res) => {
+    const db = getDB();
+    db.serialize(() => {
+        var token     = req.body.token;
+        var device_id = req.body.device_id;
+        var platform  = req.body.platform; // 0:unknown, 1:iOS, 2:Android
+
+        if (token == null || token == undefined) {
+          console.log("/token/register => `token` is null");
+          res.json({"result":400,"message":"`token` is null"});
+        }
+
+        if (device_id == null || device_id == undefined) {
+          console.log("/token/register => `device_i` is null");
+          res.json({"result":400,"message":"`device_id` is null"});
+        }
+
+        if (platform == null || platform == undefined) {
+          platform = 0;
+        }
+
+        db.run(`delete from tokens where device_id = $device_id`, device_id);
+
+        var date = new Date() ;
+        var timestamp = date.getTime();
+
+        const stmt = db.prepare('INSERT INTO tokens (timestamp, device_id, token, platform) values (?, ?, ?, ?)');
+        stmt.run([timestamp, device_id, token, platform]);
+        stmt.finalize();
+
+        console.log("/token/register =>", device_id);
+
+        res.json({"result":200,"message":"registered"});
+
+    });
+    db.close();
+});
+
+app.post('/token/unregister', (req, res) => {
+  var device_id = req.body.device_id;
+
+  if (device_id == null || device_id == undefined) {
+    console.log("/token/unregister => `device_id` is null");
+    res.json({"result":400,"message":"`device_id` is null"});
+  }
+
+  console.log("/token/unregister => ", device_id);
+
+  const db = getDB();
+  db.serialize(() => {
+    try {
+      db.run(`delete from tokens where device_id = $device_id`, device_id);
+    } catch (e) {
+      console.log(e);
+    }
+  });
+  db.close();
+
+  res.json({"result":200,"message":"unregistered"});
+});
+
 /**
  send a silent push notification
  */
 app.post('/silent', (req, res) => {
+
   var payload = req.body.payload;
   var tokens  = req.body.tokens;
   var key = req.body.key;
   var id  = req.body.id;
+
+  console.log("/silent", tokens);
 
   if (isValidAccount(id, key)) {
     var data     = getSilentPushNotificationContent();
@@ -52,6 +118,8 @@ app.post('/alert', (req, res) => {
   var id  = req.body.id;
   var tokens = req.body.tokens;
 
+  console.log("/alert", tokens);
+
   if (isValidAccount(id, key)) {
     var data = getPushNotificationContent(req.body.alert);
     push.send(tokens, data, (err, result) => {
@@ -68,56 +136,16 @@ app.post('/alert', (req, res) => {
   }
 });
 
-app.post('/token/register', (req, res) => {
-    const db = getDB();
-    db.serialize(() => {
-        var token     = req.body.token;
-        var device_id = req.body.device_id;
-        var platform  = req.body.platform; // 0:unknown, 1:iOS, 2:Android
 
-        if (token == null || token == undefined) {
-          res.json({"result":400,"message":"`token` is null"});
-        }
-
-        if (device_id == null || device_id == undefined) {
-          res.json({"result":400,"message":"`device_id` is null"});
-        }
-
-        if (platform == null || platform == undefined) {
-          platform = 0;
-        }
-
-        db.run(`delete from tokens where device_id = $device_id`, device_id);
-
-        var result = insertToken(device_id, token, platform);
-        if(result.status){
-          res.json({"result":200,"message":"registered"});
-        }else{
-          res.json({"result":500,"message":result.error});
-        }
-    });
-    db.close();
-});
-
-app.post('/token/unregister', (req, res) => {
-  var device_id = req.body.device_id;
-
-  if (device_id == null || device_id == undefined) {
-    res.json({"result":400,"message":"`device_id` is null"});
-  }
-
-  const db = getDB();
-  db.serialize(() => {
-    try {
-      db.run(`delete from tokens where device_id = $device_id`, device_id);
-    } catch (e) {
-      console.log(e);
+function isValidAccount(id, key) {
+  for (user of config.users) {
+    console.log(user.id, user.key, id, key);
+    if (user.id === id && user.key === key) {
+      return true;
     }
-  });
-  db.close();
-
-  res.json({"result":200,"message":"unregistered"});
-});
+  }
+  return false;
+}
 
 // start an aware-push server
 app.listen(3000, '127.0.0.1');
@@ -150,25 +178,8 @@ function getPushNotificationContent(alert){
   return data;
 }
 
-function insertToken(device_id, token, platform){
-  var date = new Date() ;
-  var timestamp = date.getTime();
-
-  try {
-    const db = getDB();
-    const stmt = db.prepare('INSERT INTO tokens (timestamp, device_id, token, platform) values (?, ?, ?, ?)');
-    stmt.run([timestamp, device_id, token, platform]);
-    stmt.finalize();
-    db.close();
-    return {'status':true, 'error':null};
-  } catch (e) {
-    return {'status':false, 'error':e};
-  }
-}
-
 function getDB(){
-  const db = new sqlite.Database('aware-push.sqlite');
-  return db;
+  return new sqlite.Database(config.db);;
 }
 
 // notify
@@ -188,8 +199,21 @@ function notify(){
                           {"cmd":"reactivate-core"}
                         ]}
                       };
-      push.send(tokens, data, (err, result) => {
-          console.log(result, err);
+
+      var options = {
+        url: 'http://127.0.0.1:3000/silent',
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        json: true,
+        form: {'payload':data,'tokens':tokens,
+               'id':config.users[0].id,'key':config.users[0].key}
+      }
+
+      request(options, function (error, response, body) {
+        console.log(body);
+        if (error) {
+          console.log(error);
+        }
       });
     });
   });
@@ -197,5 +221,5 @@ function notify(){
 };
 
 setInterval(notify, 1000 * 60 * 30); // send notification every 30 min
-// setInterval(notify, 1000);
+// setInterval(notify, 1000 * 10);
 // setTimeout(notify, 1000);
