@@ -29,6 +29,10 @@ alert_con = content(None, None)
 alert_con["alert"] = "Hello World!"
 testQuery('http://localhost:3000/alert', "POST", {"Content-Type" : "application/json"}, alert_con);
 
+alert_con = content(None, None)
+alert_con["alert"] = {"title":"Hello World!","body":"This is a test message"}
+testQuery('http://localhost:3000/alert', "POST", {"Content-Type" : "application/json"}, alert_con);
+
 testQuery('http://localhost:3000/silent', "POST", {"Content-Type" : "application/json"}, content("HOGE", "HOGE"))
 
 alert_con = content("HOGE", "HOGE")
