@@ -87,7 +87,8 @@ app.post('/token/register', (req, res) => {
           platform = 0;
         }
 
-        deleteToken(device_id,token);
+        db.run(`delete from tokens where device_id = $device_id`, device_id);
+
         var result = insertToken(device_id, token, platform);
         if(result.status){
           res.json({"result":200,"message":"registered"});
@@ -99,18 +100,22 @@ app.post('/token/register', (req, res) => {
 });
 
 app.post('/token/unregister', (req, res) => {
-  var token     = req.body.token;
   var device_id = req.body.device_id;
-
-  if (token == null || token == undefined) {
-    res.json({"result":400,"message":"`token` is null"});
-  }
 
   if (device_id == null || device_id == undefined) {
     res.json({"result":400,"message":"`device_id` is null"});
   }
 
-  deleteToken(device_id,token);
+  const db = getDB();
+  db.serialize(() => {
+    try {
+      db.run(`delete from tokens where device_id = $device_id`, device_id);
+    } catch (e) {
+      console.log(e);
+    }
+  });
+  db.close();
+
   res.json({"result":200,"message":"unregistered"});
 });
 
@@ -143,20 +148,6 @@ function getPushNotificationContent(alert){
     alert:alert
   };
   return data;
-}
-
-function deleteToken(device_id, token){
-  const db = getDB();
-  db.serialize(() => {
-    try {
-      db.run(`delete from tokens where device_id = $device_id`, device_id);
-    } catch (e) {
-      console.log(e);
-    } finally {
-      return;
-    }
-  });
-  db.close();
 }
 
 function insertToken(device_id, token, platform){
@@ -205,6 +196,6 @@ function notify(){
   db.close();
 };
 
-// setInterval(notify, 1000 * 60 * 30); // send notification every 30 min
-setInterval(notify, 1000);
+setInterval(notify, 1000 * 60 * 30); // send notification every 30 min
+// setInterval(notify, 1000);
 // setTimeout(notify, 1000);

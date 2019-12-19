@@ -34,6 +34,11 @@ curl -X POST -H "Content-Type: application/json" -d '{"payload":{"aware":{"v":1,
 ```
 curl -X POST -H "Content-Type: application/json" -d '{"token":"TOKEN","device_id":"DEVICE_ID","platform":1}' http://127.0.0.1:3000/token/register
 ```
+
+```
+curl -X POST -H "Content-Type: application/json" -d '{"token":"TOKEN","device_id":"DEVICE_ID","platform":1}' http://127.0.0.1:3000/token/unregister
+```
+
 platform (0=Unknown, 1=iOS, 2=Android)
 
 ### Push Notification (Alert)
