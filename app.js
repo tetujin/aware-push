@@ -99,7 +99,7 @@ app.post('/silent', (req, res) => {
 
   if (isValidAccount(id, key)) {
     var data     = getSilentPushNotificationContent();
-    data.payload = payload;
+    data.custom = payload;
     push.send(tokens, data, (err, result) => {
       if (err) {
           res.json({"result":401,"message":err});
@@ -179,7 +179,8 @@ function getPushNotificationContent(alert){
 }
 
 function getDB(){
-  return new sqlite.Database(config.db);;
+  var db = new sqlite.Database(config.db);
+  return db;
 }
 
 // notify
@@ -192,34 +193,36 @@ function notify(){
       for (row of rows) {
         tokens.push(row.token);
       }
-
-      data.payload = {"aware":{
+      data.custom = {"aware":{
                         "v":1,
                         "ops":[
                           {"cmd":"reactivate-core"}
                         ]}
                       };
-
-      var options = {
-        url: 'http://127.0.0.1:3000/silent',
-        method: 'POST',
-        headers: {'Content-Type':'application/json'},
-        json: true,
-        form: {'payload':data,'tokens':tokens,
-               'id':config.users[0].id,'key':config.users[0].key}
-      }
-
-      request(options, function (error, response, body) {
-        console.log(body);
-        if (error) {
-          console.log(error);
-        }
+      push.send(tokens, data, (err, result) => {
+        console.log(result, err);
       });
+
+      // var options = {
+      //   url: 'http://127.0.0.1:3000/silent',
+      //   method: 'POST',
+      //   headers: {'Content-Type':'application/json'},
+      //   json: true,
+      //   form: {'payload':data,'tokens':tokens,
+      //          'id':config.users[0].id,'key':config.users[0].key}
+      // }
+      //
+      // request(options, function (error, response, body) {
+      //   console.log(body);
+      //   if (error) {
+      //     console.log(error);
+      //   }
+      // });
     });
   });
   db.close();
 };
 
-setInterval(notify, 1000 * 60 * 30); // send notification every 30 min
-// setInterval(notify, 1000 * 10);
+// setInterval(notify, 1000 * 60 * 30); // send notification every 30 min
+setInterval(notify, 1000 * 10);
 // setTimeout(notify, 1000);

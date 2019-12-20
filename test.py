@@ -4,7 +4,7 @@ import time
 import json
 
 def content(testId, testKey):
-    tokens  = ["312b9f02837664b35858c965ddf7b7ef65a47ddc716916b30fd06673e2688453"]#["A_TOKEN"]
+    tokens  = ["09e0459e94eddd9bcda9dbe319450990cf400d2426bce2ddb03050c5d770d72a"]#["A_TOKEN"]
     id  = "YOUR_ID"
     if testId:
         id = testId
@@ -42,4 +42,4 @@ testQuery('http://localhost:3000/alert', "POST", {"Content-Type" : "application/
 
 token = {"device_id":"abcde","token":"12345","platform":1}
 testQuery('http://localhost:3000/token/register', "POST", {"Content-Type" : "application/json"},token)
-testQuery('http://localhost:3000/token/unregister', "POST", {"Content-Type" : "application/json"},token)
+# testQuery('http://localhost:3000/token/unregister', "POST", {"Content-Type" : "application/json"},token)
